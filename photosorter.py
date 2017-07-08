@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
 import argparse
 import os
 import os.path
@@ -7,9 +8,6 @@ import pprint
 import sys
 from dateutil.parser import parse as dateparse
 import exifread
-
-
-DATES_DIR = "/home/carl/Pictures/photos/dates"
 
 def get_image_date(path):
     """
@@ -30,6 +28,7 @@ def get_image_date(path):
 
 def process_file(path, args):
     dry_run = args.dry_run
+    move_photos = args.move_photos
     dt = get_image_date(path)
     if dt is None:
         print(
@@ -37,15 +36,18 @@ def process_file(path, args):
             file=sys.stderr)
         return
     if not hasattr(dt, 'strftime'):
+        dt_part, time_part = dt.split()
+        dt_part = dt_part.replace(":", "-")
+        combined = "{0} {1}".format(dt_part, time_part)
         try:
-            dt = dateparse(dt)
+            dt = dateparse(combined)
         except ValueError:
             print(
                 "Odd date data: '{0}' for '{1}'.  Skipping ...".format(str(dt), path), 
                 file=sys.stderr)
             return 
     s = dt.strftime("%Y-%m-%d")
-    dst_dir = os.path.join(DATES_DIR, s)
+    dst_dir = os.path.join(args.dest_dir, s)
     dst_path = os.path.join(dst_dir, os.path.basename(path))
     if dry_run:
         print("{0} -> {1}".format(path, dst_path))
@@ -53,7 +55,10 @@ def process_file(path, args):
         if not os.path.exists(dst_dir):
             os.mkdir(dst_dir)
         if not os.path.exists(dst_path):
-            os.rename(path, dst_path)
+            if move_photos:
+                os.rename(path, dst_path)
+            else:
+                os.symlink(path, dst_path)
         else:
             print("File exists: '{0}'".format(dst_path), file=sys.stderr)
 
@@ -89,6 +94,10 @@ if __name__ == "__main__":
         nargs="+",
         help="Directories or that contains photos to be sorted or individual photos.")
     parser.add_argument(
+        "--dest-dir",
+        default="/home/carl/Pictures/photos/dates",
+        help="Destination folder.")
+    parser.add_argument(
         "-r",
         "--recurse", 
         action="store_true",
@@ -98,6 +107,10 @@ if __name__ == "__main__":
         "--dry-run", 
         action="store_true",
         help="Do not sort photos.  Report how they would be sorted.")
+    parser.add_argument(
+        "--move-photos", 
+        action="store_true",
+        help="Move the files.  Default is to sym-link them.")
     args = parser.parse_args()
     main(args)
 
