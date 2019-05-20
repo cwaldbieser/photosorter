@@ -7,3 +7,7 @@ or file name.
 
 By default creates symbolic links to photos, but can actually move them, too.
 
+.. code:: bash
+
+    $ pipenv run ./photosorter.py -h
+
